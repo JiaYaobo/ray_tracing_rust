@@ -1,0 +1,1 @@
+The project follows https://misterdanb.github.io/raytracinginrust/#rays,asimplecamera,andbackground/theraystruct 
