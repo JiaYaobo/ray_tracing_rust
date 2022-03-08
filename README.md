@@ -1,1 +1,3 @@
-The project follows https://misterdanb.github.io/raytracinginrust/#rays,asimplecamera,andbackground/theraystruct 
+The project follows 
+
+[_Ray Tracing in One Weekend_](https://raytracing.github.io/books/RayTracingInOneWeekend.html)
