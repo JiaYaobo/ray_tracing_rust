@@ -2,12 +2,15 @@ mod vec;
 mod ray;
 mod hit;
 mod sphere;
+mod camera;
 
 use std::io::{stderr, Write};
+use rand::Rng;
 use vec::{Vec3, Color, Point3};
 use ray::Ray;
 use hit::{Hit, HitRecord, World};
 use sphere::Sphere;
+use camera::Camera;
 
 fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> f64{
     let oc = r.origin() - center;
@@ -37,7 +40,8 @@ fn main() {
     // Image
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: u64 = 256;
-    const IMAGE_HEIGHT: u64 = ((256 as f64) / ASPECT_RATIO) as u64;
+    const IMAGE_HEIGHT: u64 = ((IMAGE_WIDTH as f64) / ASPECT_RATIO) as u64;
+    const SAMPLES_PER_PIXEL: u64 = 100;
 
     // World
     let mut world = World::new();
@@ -45,33 +49,31 @@ fn main() {
     world.push(Box::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
 
     //Camera
-    let viewport_height = 2.0;
-    let viewport_width = ASPECT_RATIO * viewport_height;
-    let focal_length = 1.0;
-
-    let origin = Point3::new(0., 0., 0.);
-    let horizontal = Vec3::new(viewport_width, 0., 0.);
-    let vertical = Vec3::new(0., viewport_height, 0.);
-    let lower_left_corner : Point3 = origin - horizontal / 2.0 - vertical / 2.0 - Vec3::new(0., 0., focal_length);
-
+    let cam = Camera::new();
     println!("P3");
     println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
     println!("255");
 
+
+    let mut rng = rand::thread_rng();
     for j in (0..IMAGE_HEIGHT).rev() {
         eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
         stderr().flush().unwrap();
         for i in 0..IMAGE_WIDTH {
+            let mut pixel_color = Color::new(0., 0., 0.);
+            for _ in 0..SAMPLES_PER_PIXEL {
+                let random_u: f64 = rng.gen();
+                let random_v: f64 = rng.gen();
 
+                let u = ((i as f64) + random_u) / ((IMAGE_WIDTH - 1) as f64);
+                let v = ((j as f64) + random_v) / ((IMAGE_HEIGHT - 1) as f64);
 
-            let u = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
-            let v = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
-            let r = Ray::new(origin, lower_left_corner + u * horizontal + v * vertical - origin);
+                let r = cam.get_ray(u, v);
 
-            let pixel_color = ray_color(&r, &world);
+                pixel_color += ray_color(&r, &world);
+            }
 
-            println!("{}", pixel_color.format_color());
-
+            println!("{}", pixel_color.format_color(SAMPLES_PER_PIXEL));
         }
     }
     eprintln!("Done.");
