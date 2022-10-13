@@ -1,37 +1,48 @@
 mod vec;
 mod ray;
+mod hit;
+mod sphere;
 
 use std::io::{stderr, Write};
-use vec::{Vec3, Color};
+use vec::{Vec3, Color, Point3};
 use ray::Ray;
-use crate::vec::Point3;
+use hit::{Hit, HitRecord, World};
+use sphere::Sphere;
 
-fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> bool{
+fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> f64{
     let oc = r.origin() - center;
     let a  = r.direction().dot(r.direction());
     let b = 2.0 * oc.dot(r.direction());
     let c = oc.dot(oc) - radius * radius;
     let discriminant = b * b - 4.0 * a * c;
-    discriminant > 0.0
-}
 
-fn ray_color(r: &Ray) -> Color {
-    if hit_sphere(Point3::new(0.0, 0.0, -1.0), 0.5, r){
-        return Color::new(1.0, 0.0, 0.0);
+    if discriminant < 0.0 {
+        -1.0
+    }else {
+        (-b - discriminant.sqrt()) / (2.0 * a)
     }
-
-    let unit_direction = r.direction().normalized();
-    let t = 0.5 * (unit_direction.y() + 1.0);
-
-    (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
 }
 
+fn ray_color(r: &Ray, world: &World) -> Color {
+    if let Some(rec) = world.hit(r, 0.0, f64::INFINITY) {
+        0.5 * (rec.normal + Color::new(1.0, 1.0, 1.0))
+    } else {
+        let unit_direction = r.direction().normalized();
+        let t = 0.5 * (unit_direction.y() + 1.0);
+        (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
+    }
+}
 
 fn main() {
     // Image
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: u64 = 256;
-    const IMAGE_HEIGHT: u64 = ((256 as f64) / ASPECT_RATIO ) as u64;
+    const IMAGE_HEIGHT: u64 = ((256 as f64) / ASPECT_RATIO) as u64;
+
+    // World
+    let mut world = World::new();
+    world.push(Box::new(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5)));
+    world.push(Box::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
 
     //Camera
     let viewport_height = 2.0;
@@ -51,27 +62,13 @@ fn main() {
         eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
         stderr().flush().unwrap();
         for i in 0..IMAGE_WIDTH {
-            // let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
-            // let g = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
-            // let b = 0.5;
-            //
-            //
-            // let ir = (255.999 * r) as u64;
-            // let ig: u64 = (255.999 * g) as u64;
-            // let ib: u64 = (255.999 * b) as u64;
-            //
-            // println!("{} {} {}", ir, ig, ib);
+
 
             let u = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
             let v = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
             let r = Ray::new(origin, lower_left_corner + u * horizontal + v * vertical - origin);
 
-
-            // let pixel_color = Color::new((i as f64) / ((IMAGE_WIDTH - 1) as f64),
-            //                              (j as f64) / ((IMAGE_HEIGHT - 1) as f64),
-            //                              0.25);
-
-            let pixel_color = ray_color(&r);
+            let pixel_color = ray_color(&r, &world);
 
             println!("{}", pixel_color.format_color());
 
